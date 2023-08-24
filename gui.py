@@ -63,10 +63,25 @@ def display_passwords():
     for pwd in passwords.find({"user_id": current_user_id}):
         password_table.insert("", "end", values=(pwd["platform"], pwd["username"], "******", ",".join(pwd["tags"])), tags=('password', pwd["password"]))
 
+def reveal_password():
+    item = password_table.selection()[0]
+    password = password_table.item(item, "tags")[1]
+    password_table.set(item, "Password", password)
+
+def copy_to_clipboard():
+    item = password_table.selection()[0]
+    password = password_table.item(item, "tags")[1]
+    app.clipboard_clear()
+    app.clipboard_append(password)
+
 def show_password(event):
     item = password_table.identify('item', event.x, event.y)
     password = password_table.item(item, "tags")[1]
-    messagebox.showinfo("Password", f"Password: {password}")
+    password_table.set(item, "Password", password)
+
+def on_right_click(event):
+    password_table.selection_set(password_table.identify_row(event.y))
+    right_click_menu.post(event.x_root, event.y_root)
 
 def logout():
     global current_user_id
@@ -78,10 +93,8 @@ def logout():
 
 app = tk.Tk()
 app.title("Password Manager")
-app.geometry("600x400")
-app.minsize(600, 400)
-app.rowconfigure(0, weight=1)
-app.columnconfigure(0, weight=1)
+app.geometry("800x400")
+app.minsize(800, 400)
 
 login_frame = ttk.Frame(app)
 login_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
@@ -95,19 +108,30 @@ ttk.Button(login_frame, text="Login", command=login).grid(row=2, column=0, pady=
 ttk.Button(login_frame, text="Sign Up", command=register).grid(row=2, column=1, pady=10, padx=5, sticky='w')
 
 password_manager_frame = ttk.Frame(app)
+password_manager_frame.pack(side="left", fill="both", expand=True)
+
 search_bar = ttk.Entry(password_manager_frame)
 search_bar.pack(pady=10, fill=tk.X, padx=10)
+
 password_table = ttk.Treeview(password_manager_frame, columns=("Platform", "Username", "Password", "Tags"), show="headings")
 password_table.heading("Platform", text="Platform")
 password_table.heading("Username", text="Username")
 password_table.heading("Password", text="Password")
 password_table.heading("Tags", text="Tags")
-password_table.tag_bind('password', '<Double-1>', show_password)
+password_table.bind('<Button-3>', on_right_click)
+password_table.bind('<Double-1>', show_password)
 password_table.pack(pady=20, fill=tk.BOTH, expand=True, padx=10)
+
+right_click_menu = tk.Menu(app, tearoff=0)
+right_click_menu.add_command(label="Reveal", command=reveal_password)
+right_click_menu.add_command(label="Copy to Clipboard", command=copy_to_clipboard)
+
 button_frame = ttk.Frame(password_manager_frame)
 button_frame.pack(pady=10, fill=tk.X, padx=10)
+
 add_button = ttk.Button(button_frame, text="+", command=add_password)
 add_button.pack(side="left")
+
 logout_button = ttk.Button(button_frame, text="Logout", command=logout)
 logout_button.pack(side="right")
 

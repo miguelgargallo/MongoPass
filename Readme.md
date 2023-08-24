@@ -25,6 +25,10 @@
 
 ## GUI In action
 
+### New in this version
+![Left Click to reveal](.githubages/assets/images/GUI/AppLeftClickReveal.jpg)
+
+### We maintain in this version
 ![SignUp](.githubages/assets/images/GUI/SignUp.jpg)
 ![RegisterSuccess](.githubages/assets/images/GUI/RegisterSuccess.jpg)
 ![NewUser](.githubages/assets/images/GUI/NewUser.jpg)
