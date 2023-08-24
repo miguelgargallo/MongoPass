@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog
 import pymongo
 import bcrypt
 from decouple import config
@@ -13,46 +13,51 @@ passwords = db.passwords
 
 current_user_id = None
 
+
 def register():
-    username = entry_username.get()
-    password = entry_password.get()
+    username, password = entry_username.get(), entry_password.get()
     if not username or not password:
-        messagebox.showerror("Error", "Please enter both username and password!")
-        return
+        return messagebox.showerror("Error", "Please enter both username and password!")
     if app_users.find_one({"username": username}):
-        messagebox.showerror("Error", "Username already exists!")
-        return
+        return messagebox.showerror("Error", "Username already exists!")
     hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
     app_users.insert_one({"username": username, "password": hashed})
     messagebox.showinfo("Success", "Registration successful!")
 
+
 def login(event=None):
     global current_user_id
-    username = entry_username.get()
-    password = entry_password.get()
+    username, password = entry_username.get(), entry_password.get()
     user = app_users.find_one({"username": username})
     if not user or not bcrypt.checkpw(password.encode('utf-8'), user["password"]):
-        messagebox.showerror("Error", "Invalid credentials!")
-        return
+        return messagebox.showerror("Error", "Invalid credentials!")
     current_user_id = user['_id']
-    login_frame.pack_forget()
-    password_manager_frame.pack()
+    switch_frames(login_frame, password_manager_frame)
     display_passwords()
+
+
+def switch_frames(frame_to_hide, frame_to_show):
+    frame_to_hide.pack_forget()
+    frame_to_show.pack(fill=tk.BOTH, expand=True)
+
 
 def add_password():
     show_sidebar()
 
+
 def display_passwords():
-    for record in password_table.get_children():
-        password_table.delete(record)
+    password_table.delete(*password_table.get_children())
     search_query = search_bar.get()
     for pwd in passwords.find({"user_id": current_user_id, "platform": {'$regex': search_query, '$options': 'i'}}):
-        password_table.insert("", "end", values=(pwd["platform"], pwd["username"], "******", ",".join(pwd["tags"])), tags=('password', pwd["password"]))
+        password_table.insert("", "end", values=(
+            pwd["platform"], pwd["username"], "******", ",".join(pwd["tags"])))
+
 
 def reveal_password():
     item = password_table.selection()[0]
     password = password_table.item(item, "tags")[1]
     password_table.set(item, "Password", password)
+
 
 def copy_to_clipboard():
     item = password_table.selection()[0]
@@ -60,113 +65,149 @@ def copy_to_clipboard():
     app.clipboard_clear()
     app.clipboard_append(password)
 
-def show_password(event):
-    reveal_password()
 
 def on_right_click(event):
     password_table.selection_set(password_table.identify_row(event.y))
     right_click_menu.post(event.x_root, event.y_root)
 
+
 def logout():
     global current_user_id
     current_user_id = None
-    password_manager_frame.pack_forget()
+    switch_frames(password_manager_frame, login_frame)
     entry_username.delete(0, tk.END)
     entry_password.delete(0, tk.END)
-    login_frame.pack()
+
 
 def hide_sidebar():
     sidebar_frame.pack_forget()
     add_button.pack(side="left")
 
+
 def show_sidebar():
     sidebar_frame.pack(side="right", fill="y")
     add_button.pack_forget()
 
+
 def save_password():
-    platform_link = entry_platform_link.get()
+    platform_link, platform_username, platform_password, tags = entry_platform_link.get(
+    ), entry_platform_username.get(), entry_platform_password.get(), entry_tags.get().split(",")[:3]
     platform_name = urlparse(platform_link).netloc.split('.')[0]
-    platform_username = entry_platform_username.get()
-    platform_password = entry_platform_password.get()
-    tags = entry_tags.get().split(",")[:3]
     passwords.insert_one({
         "platform": platform_name,
         "link": platform_link,
         "username": platform_username,
         "password": platform_password,
         "tags": tags,
-        "user_id": current_user_id
+        "user_id": current_user_id,
+        "organization": entry_organization.get(),
+        "database_name": entry_db_name.get(),
+        "database_password": entry_db_password.get(),
+        "region": entry_region.get(),
+        "pricing": entry_pricing.get(),
+        "platform_type": entry_platform_type.get(),
+        "token_public": entry_token_public.get(),
+        "token_private": entry_token_private.get(),
+        "email": entry_email.get()
     })
     display_passwords()
     hide_sidebar()
 
+
 def upload_image():
-    file_path = filedialog.askopenfilename(filetypes=[('Image Files', '*.png;*.jpg;*.jpeg')])
+    file_path = filedialog.askopenfilename(
+        filetypes=[('Image Files', '*.png;*.jpg;*.jpeg')])
     if file_path:
-        messagebox.showinfo("Image", f"Image saved at {file_path}. Remember, if you delete the app, the image will be lost.")
+        messagebox.showinfo(
+            "Image", f"Image saved at {file_path}. Remember, if you delete the app, the image will be lost.")
+
 
 app = tk.Tk()
 app.title("Password Manager")
-app.geometry("1200x600")
-app.minsize(1200, 600)
+app.geometry("1400x700")
+app.minsize(1400, 700)
 
+# Login Frame
 login_frame = ttk.Frame(app)
-login_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-ttk.Label(login_frame, text="Username").grid(row=0, column=0, pady=5)
-entry_username = ttk.Entry(login_frame)
-entry_username.grid(row=0, column=1, pady=5, padx=5)
-ttk.Label(login_frame, text="Password").grid(row=1, column=0, pady=5)
-entry_password = ttk.Entry(login_frame, show="*")
-entry_password.grid(row=1, column=1, pady=5, padx=5)
+login_frame.pack(fill=tk.BOTH, expand=True)
+
+entry_username, entry_password = ttk.Entry(
+    login_frame), ttk.Entry(login_frame, show="*")
 entry_password.bind('<Return>', login)
-ttk.Button(login_frame, text="Login", command=login).grid(row=2, column=0, pady=10, padx=5, sticky='e')
-ttk.Button(login_frame, text="Sign Up", command=register).grid(row=2, column=1, pady=10, padx=5, sticky='w')
 
+for widget, row, text in zip([entry_username, entry_password], range(2), ["Username", "Password"]):
+    ttk.Label(login_frame, text=text).grid(row=row, column=0, pady=5)
+    widget.grid(row=row, column=1, pady=5, padx=5)
+
+ttk.Button(login_frame, text="Login", command=login).grid(
+    row=2, column=0, pady=10, padx=5, sticky='e')
+ttk.Button(login_frame, text="Sign Up", command=register).grid(
+    row=2, column=1, pady=10, padx=5, sticky='w')
+
+# Password Manager Frame
 password_manager_frame = ttk.Frame(app)
-password_manager_frame.pack(side="left", fill="both", expand=True)
-
 search_bar = ttk.Entry(password_manager_frame)
 search_bar.bind('<KeyRelease>', lambda e: display_passwords())
-search_bar.pack(pady=10, fill=tk.X, padx=10)
 
-password_table = ttk.Treeview(password_manager_frame, columns=("Platform", "Username", "Password", "Tags"), show="headings")
-password_table.heading("Platform", text="Platform")
-password_table.heading("Username", text="Username")
-password_table.heading("Password", text="Password")
-password_table.heading("Tags", text="Tags")
+password_table = ttk.Treeview(password_manager_frame, columns=(
+    "Platform", "Username", "Password", "Tags"), show="headings")
+for col, text in zip(password_table["columns"], ["Platform", "Username", "Password", "Tags"]):
+    password_table.heading(col, text=text)
+
 password_table.bind('<Button-3>', on_right_click)
-password_table.bind('<Double-1>', show_password)
-password_table.pack(pady=20, fill=tk.BOTH, expand=True, padx=10)
+password_table.bind('<Double-1>', reveal_password)
 
 right_click_menu = tk.Menu(app, tearoff=0)
 right_click_menu.add_command(label="Reveal", command=reveal_password)
-right_click_menu.add_command(label="Copy to Clipboard", command=copy_to_clipboard)
+right_click_menu.add_command(
+    label="Copy to Clipboard", command=copy_to_clipboard)
+
+# Sidebar for adding passwords
+sidebar_frame = ttk.Frame(password_manager_frame)
+entries = {
+    "Platform Link": tk.StringVar(),
+    "Username": tk.StringVar(),
+    "Password": tk.StringVar(),
+    "Tags (comma-separated)": tk.StringVar(),
+    "Organization": tk.StringVar(),
+    "Database Name": tk.StringVar(),
+    "Database Password": tk.StringVar(),
+    "Region": tk.StringVar(),
+    "Pricing": tk.StringVar(),
+    "Platform Type": tk.StringVar(),
+    "Token Public": tk.StringVar(),
+    "Token Private": tk.StringVar(),
+    "Email": tk.StringVar()
+}
+
+for label_text, variable in entries.items():
+    ttk.Label(sidebar_frame, text=label_text).pack(pady=5, padx=10)
+    if "Password" in label_text:
+        ttk.Entry(sidebar_frame, textvariable=variable,
+                  show="*").pack(pady=5, padx=10, fill=tk.X)
+    else:
+        ttk.Entry(sidebar_frame, textvariable=variable).pack(
+            pady=5, padx=10, fill=tk.X)
+
+upload_button = ttk.Button(
+    sidebar_frame, text="Upload Image", command=upload_image)
+
+ttk.Button(sidebar_frame, text="Hide", command=hide_sidebar).pack(
+    side="left", pady=10, padx=10)
+ttk.Button(sidebar_frame, text="Save", command=save_password).pack(
+    side="right", pady=10, padx=10)
+
+for widget in [search_bar, password_table, upload_button]:
+    widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
 button_frame = ttk.Frame(password_manager_frame)
-button_frame.pack(pady=10, fill=tk.X, padx=10)
-
 add_button = ttk.Button(button_frame, text="+", command=show_sidebar)
-add_button.pack(side="left")
-
 logout_button = ttk.Button(button_frame, text="Logout", command=logout)
-logout_button.pack(side="right")
 
-sidebar_frame = ttk.Frame(password_manager_frame)
-ttk.Label(sidebar_frame, text="Platform Link").pack(pady=5, padx=10)
-entry_platform_link = ttk.Entry(sidebar_frame)
-entry_platform_link.pack(pady=5, padx=10, fill=tk.X)
-ttk.Label(sidebar_frame, text="Username").pack(pady=5, padx=10)
-entry_platform_username = ttk.Entry(sidebar_frame)
-entry_platform_username.pack(pady=5, padx=10, fill=tk.X)
-ttk.Label(sidebar_frame, text="Password").pack(pady=5, padx=10)
-entry_platform_password = ttk.Entry(sidebar_frame, show="*")
-entry_platform_password.pack(pady=5, padx=10, fill=tk.X)
-ttk.Label(sidebar_frame, text="Tags (comma-separated)").pack(pady=5, padx=10)
-entry_tags = ttk.Entry(sidebar_frame)
-entry_tags.pack(pady=5, padx=10, fill=tk.X)
-upload_button = ttk.Button(sidebar_frame, text="Upload Image", command=upload_image)
-upload_button.pack(pady=5, padx=10)
-ttk.Button(sidebar_frame, text="Hide", command=hide_sidebar).pack(pady=10, padx=10, side="left")
-ttk.Button(sidebar_frame, text="Save", command=save_password).pack(pady=10, padx=10, side="right")
+for widget in [add_button, logout_button]:
+    widget.pack(side="left" if widget ==
+                add_button else "right", pady=10, padx=10)
+
+button_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
 app.mainloop()
