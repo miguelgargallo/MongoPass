@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox
+from tkinter import ttk, simpledialog, messagebox, filedialog
 import pymongo
 import bcrypt
 from decouple import config
@@ -45,7 +45,8 @@ def add_password():
 def display_passwords():
     for record in password_table.get_children():
         password_table.delete(record)
-    for pwd in passwords.find({"user_id": current_user_id}):
+    search_query = search_bar.get()
+    for pwd in passwords.find({"user_id": current_user_id, "platform": {'$regex': search_query, '$options': 'i'}}):
         password_table.insert("", "end", values=(pwd["platform"], pwd["username"], "******", ",".join(pwd["tags"])), tags=('password', pwd["password"]))
 
 def reveal_password():
@@ -99,6 +100,11 @@ def save_password():
     display_passwords()
     hide_sidebar()
 
+def upload_image():
+    file_path = filedialog.askopenfilename(filetypes=[('Image Files', '*.png;*.jpg;*.jpeg')])
+    if file_path:
+        messagebox.showinfo("Image", f"Image saved at {file_path}. Remember, if you delete the app, the image will be lost.")
+
 app = tk.Tk()
 app.title("Password Manager")
 app.geometry("800x400")
@@ -120,6 +126,7 @@ password_manager_frame = ttk.Frame(app)
 password_manager_frame.pack(side="left", fill="both", expand=True)
 
 search_bar = ttk.Entry(password_manager_frame)
+search_bar.bind('<KeyRelease>', lambda e: display_passwords())
 search_bar.pack(pady=10, fill=tk.X, padx=10)
 
 password_table = ttk.Treeview(password_manager_frame, columns=("Platform", "Username", "Password", "Tags"), show="headings")
