@@ -107,8 +107,8 @@ def upload_image():
 
 app = tk.Tk()
 app.title("Password Manager")
-app.geometry("800x400")
-app.minsize(800, 400)
+app.geometry("1200x600")
+app.minsize(1200, 600)
 
 login_frame = ttk.Frame(app)
 login_frame.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
@@ -164,6 +164,8 @@ entry_platform_password.pack(pady=5, padx=10, fill=tk.X)
 ttk.Label(sidebar_frame, text="Tags (comma-separated)").pack(pady=5, padx=10)
 entry_tags = ttk.Entry(sidebar_frame)
 entry_tags.pack(pady=5, padx=10, fill=tk.X)
+upload_button = ttk.Button(sidebar_frame, text="Upload Image", command=upload_image)
+upload_button.pack(pady=5, padx=10)
 ttk.Button(sidebar_frame, text="Hide", command=hide_sidebar).pack(pady=10, padx=10, side="left")
 ttk.Button(sidebar_frame, text="Save", command=save_password).pack(pady=10, padx=10, side="right")
 
